@@ -45,7 +45,7 @@ which fields to check. Searching for nested fields is just as easy:
 >>> db.search(User.birthday.year == 1990)
 
 Not all fields can be accessed this way if the field name is not a valid Python
-identifier. In this case, you can switch to dict access notation:
+identifier. In this case, you can switch to array indexing notation:
 
 >>> # This would be invalid Python syntax:
 >>> db.search(User.country-code == 'foo')
@@ -536,6 +536,10 @@ to the ``table(...)`` function:
 
 .. hint:: You can set ``cache_size`` to ``None`` to make the cache unlimited in
    size. Also, you can set ``cache_size`` to 0 to disable it.
+
+.. hint:: It's not possible to open the same table multiple times with different
+   settings. After the first invocation, all the subsequent calls will return
+   the same table with the same settings as the first one.
 
 .. hint:: The TinyDB query cache doesn't check if the underlying storage
    that the database uses has been modified by an external process. In this
