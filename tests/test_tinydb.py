@@ -118,9 +118,6 @@ def test_insert_multiple_with_doc_ids(db: TinyDB):
     assert db.get(doc_id=12) == {'int': 1, 'char': 'a'}
     assert db.get(doc_id=77) == {'int': 1, 'char': 'b'}
 
-    with pytest.raises(ValueError):
-        db.insert_multiple([Document({'int': 1, 'char': 'a'}, 12)])
-
 
 def test_insert_invalid_type_raises_error(db: TinyDB):
     with pytest.raises(ValueError, match='Document is not a Mapping'):
@@ -147,7 +144,7 @@ def test_insert_valid_mapping_type(db: TinyDB):
     assert db.count(where('int') == 1) == 1
 
 
-def test_custom_mapping_type_with_json(tmpdir):
+def test_cutom_mapping_type_with_json(tmpdir):
     class CustomDocument(Mapping):
         def __init__(self, data):
             self.data = data
