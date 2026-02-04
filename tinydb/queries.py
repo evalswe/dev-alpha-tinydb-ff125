@@ -38,12 +38,15 @@ class QueryLike(Protocol):
     """
     A typing protocol that acts like a query.
 
-    Something that we use as a query must have three properties:
+    Something that we use as a query must have two properties:
 
     1. It must be callable, accepting a `Mapping` object and returning a
        boolean that indicates whether the value matches the query, and
     2. it must have a stable hash that will be used for query caching.
-    3. it must declare whether it is cacheable (that is, whether it is immutable).
+
+    In addition, to mark a query as non-cacheable (e.g. if it involves
+    some remote lookup) it needs to have a method called ``is_cacheable``
+    that returns ``False``.
 
     This query protocol is used to make MyPy correctly support the query
     pattern that TinyDB uses.
@@ -53,8 +56,6 @@ class QueryLike(Protocol):
     def __call__(self, value: Mapping) -> bool: ...
 
     def __hash__(self): ...
-
-    def is_cacheable(self) -> bool: ...
 
 
 class QueryInstance:
@@ -92,8 +93,8 @@ class QueryInstance:
 
     def __hash__(self):
         # We calculate the query hash by using the ``hashval`` object which
-        # describes this query uniquely so we can calculate a stable hash value
-        # by simply hashing it
+        # describes this query uniquely, so we can calculate a stable hash
+        # value by simply hashing it
         return hash(self._hash)
 
     def __repr__(self):
@@ -136,7 +137,7 @@ class Query(QueryInstance):
     """
     TinyDB Queries.
 
-    Allows to build queries for TinyDB databases. There are two main ways of
+    Allows building queries for TinyDB databases. There are two main ways of
     using queries:
 
     1) ORM-like usage:
@@ -162,12 +163,12 @@ class Query(QueryInstance):
 
     Queries are executed by calling the resulting object. They expect to get
     the document to test as the first argument and return ``True`` or
-    ``False`` depending on whether the documents matches the query or not.
+    ``False`` depending on whether the documents match the query or not.
     """
 
     def __init__(self) -> None:
         # The current path of fields to access when evaluating the object
-        self._path = ()  # type: Tuple[Union[str, Callable], ...]
+        self._path: Tuple[Union[str, Callable], ...] = ()
 
         # Prevent empty queries to be evaluated
         def notest(_):
@@ -512,7 +513,7 @@ class Query(QueryInstance):
         # Now we add the callable to the query path ...
         query._path = self._path + (fn,)
 
-        # ... and kill the hash - callable objects can be mutable so it's
+        # ... and kill the hash - callable objects can be mutable, so it's
         # harmful to cache their results.
         query._hash = None
 

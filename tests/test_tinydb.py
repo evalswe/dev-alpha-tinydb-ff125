@@ -1,7 +1,7 @@
 import re
 from collections.abc import Mapping
 
-import pytest  # type: ignore
+import pytest
 
 from tinydb import TinyDB, where, Query
 from tinydb.middlewares import Middleware, CachingMiddleware
@@ -61,7 +61,7 @@ def test_insert_with_duplicate_doc_id(db: TinyDB):
     db.drop_tables()
     assert db.insert({'int': 1, 'char': 'a'}) == 1
 
-    with pytest.raises(AssertionError):
+    with pytest.raises(ValueError):
         db.insert(Document({'int': 1, 'char': 'a'}, 1))
 
 
@@ -108,6 +108,20 @@ def test_insert_multiple_with_ids(db: TinyDB):
                                {'int': 1, 'char': 'c'}]) == [1, 2, 3]
 
 
+def test_insert_multiple_with_doc_ids(db: TinyDB):
+    db.drop_tables()
+
+    assert db.insert_multiple([
+        Document({'int': 1, 'char': 'a'}, 12),
+        Document({'int': 1, 'char': 'b'}, 77)
+    ]) == [12, 77]
+    assert db.get(doc_id=12) == {'int': 1, 'char': 'a'}
+    assert db.get(doc_id=77) == {'int': 1, 'char': 'b'}
+
+    with pytest.raises(ValueError):
+        db.insert_multiple([Document({'int': 1, 'char': 'a'}, 12)])
+
+
 def test_insert_invalid_type_raises_error(db: TinyDB):
     with pytest.raises(ValueError, match='Document is not a Mapping'):
         # object() as an example of a non-mapping-type
@@ -133,7 +147,7 @@ def test_insert_valid_mapping_type(db: TinyDB):
     assert db.count(where('int') == 1) == 1
 
 
-def test_cutom_mapping_type_with_json(tmpdir):
+def test_custom_mapping_type_with_json(tmpdir):
     class CustomDocument(Mapping):
         def __init__(self, data):
             self.data = data
@@ -681,3 +695,13 @@ def test_storage_access():
     db = TinyDB(storage=MemoryStorage)
 
     assert isinstance(db.storage, MemoryStorage)
+
+
+def test_lambda_query():
+    db = TinyDB(storage=MemoryStorage)
+    db.insert({'foo': 'bar'})
+
+    query = lambda doc: doc.get('foo') == 'bar'
+    query.is_cacheable = lambda: False
+    assert db.search(query) == [{'foo': 'bar'}]
+    assert not db._query_cache
