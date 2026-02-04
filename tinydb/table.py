@@ -160,8 +160,10 @@ class Table:
 
         # Now, we update the table and add the document
         def updater(table: dict):
-            assert doc_id not in table, 'doc_id '+str(doc_id)+' already exists'
-
+            
+            if doc_id in table:
+                raise ValueError(f'doc_id {str(doc_id)} already exists')
+                
             # By calling ``dict(document)`` we convert the data we got to a
             # ``dict`` instance even if it was a different class that
             # implemented the ``Mapping`` interface
@@ -181,19 +183,31 @@ class Table:
         """
         doc_ids = []
 
-        def updater(table: dict):
+       def updater(table: dict):
             for document in documents:
+
                 # Make sure the document implements the ``Mapping`` interface
                 if not isinstance(document, Mapping):
                     raise ValueError('Document is not a Mapping')
 
-                # Get the document ID for this document and store it so we
-                # can return all document IDs later
+                if isinstance(document, Document):
+                    # check if document does not override an existing document
+                    if document.doc_id in table:
+                        raise ValueError(f'doc_id {str(document.doc_id)} already exists')
+
+                    # store the doc_id so we can return all document IDs later
+                    # then save the document with it's doc_id
+                    # and skip the rest of the current loop
+                    doc_id = document.doc_id
+                    doc_ids.append(doc_id)
+                    table[doc_id] = dict(document)
+                    continue
+
+                # generate new document ID for this document
+                # store the doc_id so we can return all document IDs later
+                # then save the document with the new doc_id
                 doc_id = self._get_next_id()
                 doc_ids.append(doc_id)
-
-                # Convert the document to a ``dict`` (see Table.insert) and
-                # store it
                 table[doc_id] = dict(document)
 
         # See below for details on ``Table._update``
@@ -232,7 +246,22 @@ class Table:
         # Perform the search by applying the query to all documents
         docs = [doc for doc in self if cond(doc)]
 
-        if cond.is_cacheable():
+        # Only cache cacheable queries.
+        #
+        # This weird `getattr` dance is needed to make MyPy happy as
+        # it doesn't know that a query might have a `is_cacheable` method
+        # that is not declared in the `QueryLike` protocol due to it being
+        # optional.
+        # See: https://github.com/python/mypy/issues/1424
+        #
+        # Note also that by default we expect custom query objects to be
+        # cacheable (which means they need to have a stable hash value).
+        # This is to keep consistency with TinyDB's behavior before
+        # `is_cacheable` was introduced which assumed that all queries
+        # are cacheable.
+        is_cacheable: Callable[[], bool] = getattr(cond, 'is_cacheable',
+                                                   lambda: True)
+        if is_cacheable():
             # Update the query cache
             self._query_cache[cond] = docs[:]
 
