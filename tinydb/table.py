@@ -27,7 +27,7 @@ class Document(dict):
     """
     A document stored in the database.
 
-    This class provides a way to access both a document's content as well as
+    This class provides a way to access both a document's content and
     its ID using ``doc.doc_id``.
     """
 
@@ -178,7 +178,7 @@ class Table:
         """
         Insert multiple documents into the table.
 
-        :param documents: a Iterable of documents to insert
+        :param documents: an Iterable of documents to insert
         :returns: a list containing the inserted documents' IDs
         """
         doc_ids = []
@@ -246,8 +246,14 @@ class Table:
         if cached_results is not None:
             return cached_results[:]
 
-        # Perform the search by applying the query to all documents
-        docs = [doc for doc in self if cond(doc)]
+        # Perform the search by applying the query to all documents.
+        # Then, only if the document matches the query, convert it
+        # to the document class and document ID class.
+        docs = [
+            self.document_class(doc, self.document_id_class(doc_id))
+            for doc_id, doc in self._read_table().items()
+            if cond(doc)
+        ]
 
         # Only cache cacheable queries.
         #
@@ -299,9 +305,16 @@ class Table:
 
         elif cond is not None:
             # Find a document specified by a query
-            for doc in self:
+            # The trailing underscore in doc_id_ is needed so MyPy
+            # doesn't think that `doc_id_` (which is a string) needs
+            # to have the same type as `doc_id` which is this function's
+            # parameter and is an optional `int`.
+            for doc_id_, doc in self._read_table().items():
                 if cond(doc):
-                    return doc
+                    return self.document_class(
+                        doc,
+                        self.document_id_class(doc_id_)
+                    )
 
             return None
 
@@ -532,8 +545,8 @@ class Table:
             # been removed. When removing documents identified by a set of
             # document IDs, it's this list of document IDs we need to return
             # later.
-            # We convert the document ID iterator into a list so we can both
-            # use the document IDs to remove the specified documents as well as
+            # We convert the document ID iterator into a list, so we can both
+            # use the document IDs to remove the specified documents and
             # to return the list of affected document IDs
             removed_ids = list(doc_ids)
 
@@ -686,10 +699,10 @@ class Table:
 
     def _update_table(self, updater: Callable[[Dict[int, Mapping]], None]):
         """
-        Perform an table update operation.
+        Perform a table update operation.
 
         The storage interface used by TinyDB only allows to read/write the
-        complete database data, but not modifying only portions of it. Thus
+        complete database data, but not modifying only portions of it. Thus,
         to only update portions of the table data, we first perform a read
         operation, perform the update on the table data and then write
         the updated data back to the storage.
