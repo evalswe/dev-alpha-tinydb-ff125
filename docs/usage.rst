@@ -45,7 +45,7 @@ which fields to check. Searching for nested fields is just as easy:
 >>> db.search(User.birthday.year == 1990)
 
 Not all fields can be accessed this way if the field name is not a valid Python
-identifier. In this case, you can switch to array indexing notation:
+identifier. In this case, you can switch to dict access notation:
 
 >>> # This would be invalid Python syntax:
 >>> db.search(User.country-code == 'foo')
@@ -265,6 +265,18 @@ class:
 
 >>> db.insert(Document({'name': 'John', 'age': 22}, doc_id=12))
 12
+
+The same is possible when using ``db.insert_multiple(...)``:
+
+>>> db.insert_multiple([
+    Document({'name': 'John', 'age': 22}, doc_id=12),
+    Document({'name': 'Jane', 'age': 24}, doc_id=14),
+])
+[12, 14]
+
+.. note::
+    Inserting a ``Document`` with an ID that already exists will result
+    in a ``ValueError`` being raised.
 
 Updating data
 .............
