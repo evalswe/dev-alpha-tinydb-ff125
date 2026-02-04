@@ -1,7 +1,5 @@
+import pytest  # type: ignore
 import re
-
-import pytest
-
 from tinydb.queries import Query, where
 
 
