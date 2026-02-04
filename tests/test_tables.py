@@ -1,6 +1,5 @@
-import re
-
 import pytest
+import re
 
 from tinydb import where
 
