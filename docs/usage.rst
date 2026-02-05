@@ -203,16 +203,6 @@ queries:
 
     You can compose queries dynamically by using the no-op query ``Query().noop()``.
 
-    Comparisons only support literal values on the right-hand side. Field-to-field
-    comparisons like ``Query().a == Query().b`` are not supported. Use a callable
-    predicate like ``db.search(lambda doc: doc.get('a') == doc.get('b'))`` for
-    custom logic.
-
-.. note::
-    Callables passed to query APIs (e.g. predicates, ``Query().map``,
-    ``Query().test``) execute in-process and must **never** be derived from
-    untrusted or user-controlled input.
-
 Recap
 .....
 
@@ -600,16 +590,11 @@ To use the in-memory storage, use:
     All arguments except for the ``storage`` argument are forwarded to the
     underlying storage. For the JSON storage you can use this to pass
     additional keyword arguments to Python's
-    `json.dumps(...) <https://docs.python.org/3/library/json.html#json.dumps>`_
+    `json.dump(...) <https://docs.python.org/2/library/json.html#json.dump>`_
     method. For example, you can set it to create prettified JSON files like
     this:
 
     >>> db = TinyDB('db.json', sort_keys=True, indent=4, separators=(',', ': '))
-
-.. note::
-    ``JSONStorage`` forwards ``**kwargs`` to ``json.dumps``. **Never** pass
-    user-controlled values for callable arguments (e.g. ``default`` or
-    ``cls``) as they are executed in-process on every write operation.
 
 To modify the default storage for all ``TinyDB`` instances, set the
 ``default_storage_class`` class variable:
