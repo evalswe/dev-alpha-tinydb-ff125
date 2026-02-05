@@ -112,5 +112,18 @@ Before we dive deeper, let's recapitulate the basics:
 |                               | ``== 2`` (also possible: ``!=``, ``>``, ``>=``, ``<``, ``<=``)|
 +-------------------------------+---------------------------------------------------------------+
 
+.. note::
+
+    Query comparisons only support literal values on the right-hand side.
+    Field-to-field comparisons like ``Query().a == Query().b`` are not
+    supported. Use a callable predicate like
+    ``db.search(lambda doc: doc.get('a') == doc.get('b'))`` for custom logic.
+
+.. note::
+
+    Callables passed to query APIs (e.g. ``lambda`` predicates or ``Query().map``)
+    execute in-process and must **never** be derived from untrusted or user-controlled
+    input.
+
 .. References
 .. _GitHub: http://github.com/msiemens/tinydb/

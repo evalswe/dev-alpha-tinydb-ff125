@@ -6,7 +6,7 @@ implementations.
 import io
 import json
 import os
-import tempfile
+import warnings
 from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional
 
@@ -85,10 +85,18 @@ class JSONStorage(Storage):
         """
         Create a new instance.
 
-        Also creates the storage file, if it doesn't exist and the access mode is appropriate for writing.
+        Also creates the storage file, if it doesn't exist and the access mode
+        is appropriate for writing.
+
+        **Note:** Using an access mode other than `r` or `r+` will probably
+        lead to data loss or data corruption!
+
+        **Note:** **Never** pass untrusted or user-controlled code as ``kwargs``
+        members like ``cls`` or ``default`` will be called on every write
+        operation.
 
         :param path: Where to store the JSON data.
-        :param access_mode: mode in which the file is opened (r, r+, w, a, x, b, t, +, U)
+        :param access_mode: mode in which the file is opened (r, r+)
         :type access_mode: str
         """
 
@@ -96,6 +104,12 @@ class JSONStorage(Storage):
 
         self._mode = access_mode
         self.kwargs = kwargs
+
+        if access_mode not in ('r', 'rb', 'r+', 'rb+'):
+            warnings.warn(
+                'Using an `access_mode` other than \'r\', \'rb\', \'r+\' '
+                'or \'rb+\' can cause data loss or corruption'
+            )
 
         # Create the file if it doesn't exist and creating is allowed by the
         # access mode
@@ -126,31 +140,25 @@ class JSONStorage(Storage):
             return json.load(self._handle)
 
     def write(self, data: Dict[str, Dict[str, Any]]):
-        file_name = self._handle.name
-
-        # Create a temporary file in the same folder
-        temp_file = tempfile.NamedTemporaryFile(mode=self._mode, prefix=file_name, delete=False)
+        # Move the cursor to the beginning of the file just in case
+        self._handle.seek(0)
 
         # Serialize the database state using the user-provided arguments
         serialized = json.dumps(data, **self.kwargs)
 
         # Write the serialized data to the file
         try:
-            temp_file.write(serialized)
+            self._handle.write(serialized)
         except io.UnsupportedOperation:
             raise IOError('Cannot write to the database. Access mode is "{0}"'.format(self._mode))
 
         # Ensure the file has been written
-        temp_file.flush()
-        os.fsync(temp_file.fileno())
+        self._handle.flush()
+        os.fsync(self._handle.fileno())
 
-        # Replace the current file with the temporary file
-        temp_file.close()
-        os.rename(temp_file.name, file_name)
-
-        # Reopen the file
-        self._handle.close()
-        self._handle = open(file_name, mode=self._mode, encoding=self._handle.encoding)
+        # Remove data that is behind the new cursor in case the file has
+        # gotten shorter
+        self._handle.truncate()
 
 
 class MemoryStorage(Storage):
