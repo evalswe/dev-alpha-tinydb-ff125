@@ -53,6 +53,15 @@ Supported Python Versions
 
 TinyDB has been tested with Python 3.8 - 3.13 and PyPy3.
 
+Project Status
+**************
+
+This project is in maintenance mode. It has reached a mature, stable state
+where significant new features or architectural changes are not planned. That
+said, there will still be releases for bugfixes or features contributed by
+the community. Read more about what this means in particular
+`here <https://github.com/msiemens/tinydb/discussions/572>`_.
+
 Example Code
 ************
 
@@ -122,7 +131,7 @@ extensions: Contributions to TinyDB are welcome! Here's how to get started:
    a feature idea or a bug
 2. Fork `the repository <https://github.com/msiemens/tinydb/>`_ on Github,
    create a new branch off the `master` branch and start making your changes
-   (known as `GitHub Flow <https://guides.github.com/introduction/flow/index.html>`_)
+   (known as `GitHub Flow <https://docs.github.com/en/get-started/using-github/github-flow>`_)
 3. Write a test which shows that the bug was fixed or that the feature works
    as expected
 4. Send a pull request and bug the maintainer until it gets merged and

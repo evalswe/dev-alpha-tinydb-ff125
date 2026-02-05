@@ -10,10 +10,12 @@ from typing import (
     Iterator,
     List,
     Mapping,
+    NoReturn,
     Optional,
     Union,
     cast,
-    Tuple
+    Tuple,
+    overload
 )
 
 from .queries import QueryLike
@@ -72,6 +74,7 @@ class Table:
     :param storage: The storage instance to use for this table
     :param name: The table name
     :param cache_size: Maximum capacity of query cache
+    :param persist_empty: Store new table even with no operations on it
     """
 
     #: The class used to represent documents
@@ -98,7 +101,8 @@ class Table:
         self,
         storage: Storage,
         name: str,
-        cache_size: int = default_query_cache_capacity
+        cache_size: int = default_query_cache_capacity,
+        persist_empty: bool = False
     ):
         """
         Create a table instance.
@@ -110,6 +114,8 @@ class Table:
             = self.query_cache_class(capacity=cache_size)
 
         self._next_id = None
+        if persist_empty:
+            self._update_table(lambda table: table.clear())
 
     def __repr__(self):
         args = [
@@ -163,7 +169,7 @@ class Table:
             if doc_id in table:
                 raise ValueError(f'Document with ID {str(doc_id)} '
                                  f'already exists')
-                
+
             # By calling ``dict(document)`` we convert the data we got to a
             # ``dict`` instance even if it was a different class that
             # implemented the ``Mapping`` interface
@@ -276,12 +282,50 @@ class Table:
 
         return docs
 
+    @overload
+    def get(self) -> NoReturn: ...
+
+    @overload
+    def get(
+        self, cond: QueryLike, doc_id: None = ..., doc_ids: None = ...
+    ) -> Optional[Document]: ...
+
+    @overload
+    def get(
+        self, *, cond: QueryLike, doc_id: None = ..., doc_ids: None = ...
+    ) -> Optional[Document]: ...
+
+    @overload
+    def get(
+        self, cond: Optional[QueryLike], doc_id: int, doc_ids: Optional[List] = ...
+    ) -> Optional[Document]: ...
+
+    @overload
+    def get(
+        self, *, cond: Optional[QueryLike] = ..., doc_id: int, doc_ids: Optional[List] = ...,
+    ) -> Optional[Document]: ...
+
+    @overload
+    def get(
+        self, cond: Optional[QueryLike], doc_id: None, doc_ids: List
+    ) -> List[Document]: ...
+
+    @overload
+    def get(
+        self, cond: Optional[QueryLike], *, doc_id: None = ..., doc_ids: List
+    ) -> List[Document]: ...
+
+    @overload
+    def get(
+        self, *, cond: Optional[QueryLike] = ..., doc_id: None = ..., doc_ids: List
+    ) -> List[Document]: ...
+
     def get(
         self,
         cond: Optional[QueryLike] = None,
         doc_id: Optional[int] = None,
         doc_ids: Optional[List] = None
-    ) -> Optional[Union[Document, List[Document]]]:
+    ):
         """
         Get exactly one document specified by a query or a document ID.
         However, if multiple document IDs are given then returns all
@@ -695,7 +739,7 @@ class Table:
         """
         Read the table data from the underlying storage.
 
-        Documents and doc_ids are NOT yet transformed, as 
+        Documents and doc_ids are NOT yet transformed, as
         we may not want to convert *all* documents when returning
         only one document for example.
         """
