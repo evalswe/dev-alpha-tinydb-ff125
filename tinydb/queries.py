@@ -17,15 +17,9 @@ False
 """
 
 import re
-import sys
-from typing import Mapping, Tuple, Callable, Any, Union, List, Optional
+from typing import Mapping, Tuple, Callable, Any, Union, List, Optional, Protocol
 
 from .utils import freeze
-
-if sys.version_info >= (3, 8):
-    from typing import Protocol
-else:
-    from typing_extensions import Protocol
 
 __all__ = ('Query', 'QueryLike', 'where')
 
@@ -55,7 +49,7 @@ class QueryLike(Protocol):
     """
     def __call__(self, value: Mapping) -> bool: ...
 
-    def __hash__(self): ...
+    def __hash__(self) -> int: ...
 
 
 class QueryInstance:
@@ -91,7 +85,7 @@ class QueryInstance:
         """
         return self._test(value)
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         # We calculate the query hash by using the ``hashval`` object which
         # describes this query uniquely, so we can calculate a stable hash
         # value by simply hashing it
@@ -382,7 +376,7 @@ class Query(QueryInstance):
 
         .. warning::
 
-            The test fuction provided needs to be deterministic (returning the
+            The test function provided needs to be deterministic (returning the
             same value when provided with the same arguments), otherwise this
             may mess up the query cache that :class:`~tinydb.table.Table`
             implements.
