@@ -1,5 +1,4 @@
 .. image:: https://raw.githubusercontent.com/msiemens/tinydb/master/artwork/logo.png
-    :scale: 100%
     :height: 150px
 
 |Build Status| |Coverage| |Version|
@@ -33,10 +32,10 @@ TinyDB is:
   fun to use by providing a simple and clean API.
 
 - **written in pure Python:** TinyDB neither needs an external server (as
-  e.g. `PyMongo <https://api.mongodb.org/python/current/>`_) nor any dependencies
+  e.g. `PyMongo <https://pymongo.readthedocs.io/en/stable/>`_) nor any dependencies
   from PyPI.
 
-- **works on Python 3.6+ and PyPy3:** TinyDB works on all modern versions of Python
+- **works on Python 3.8+ and PyPy3:** TinyDB works on all modern versions of Python
   and PyPy.
 
 - **powerfully extensible:** You can easily extend TinyDB by writing new
@@ -52,7 +51,16 @@ projects on the `discussion forum <http://forum.m-siemens.de/.>`_.
 Supported Python Versions
 *************************
 
-TinyDB has been tested with Python 3.6 - 3.10 and PyPy3.
+TinyDB has been tested with Python 3.8 - 3.13 and PyPy3.
+
+Project Status
+**************
+
+This project is in maintenance mode. It has reached a mature, stable state
+where significant new features or architectural changes are not planned. That
+said, there will still be releases for bugfixes or features contributed by
+the community. Read more about what this means in particular
+`here <https://github.com/msiemens/tinydb/discussions/572>`_.
 
 Example Code
 ************
@@ -81,6 +89,10 @@ Query Language
     >>> # Combine two queries with logical or
     >>> db.search((User.name == 'John') | (User.name == 'Bob'))
     [{'name': 'John', 'age': 22}, {'name': 'John', 'age': 37}, {'name': 'Bob', 'age': 42}]
+
+    >>> # Negate a query with logical not
+    >>> db.search(~(User.name == 'John'))
+    [{'name': 'Megan', 'age': 27}, {'name': 'Bob', 'age': 42}]
 
     >>> # Apply transformation to field with `map`
     >>> db.search((User.age.map(lambda x: x + x) == 44))
@@ -119,7 +131,7 @@ extensions: Contributions to TinyDB are welcome! Here's how to get started:
    a feature idea or a bug
 2. Fork `the repository <https://github.com/msiemens/tinydb/>`_ on Github,
    create a new branch off the `master` branch and start making your changes
-   (known as `GitHub Flow <https://guides.github.com/introduction/flow/index.html>`_)
+   (known as `GitHub Flow <https://docs.github.com/en/get-started/using-github/github-flow>`_)
 3. Write a test which shows that the bug was fixed or that the feature works
    as expected
 4. Send a pull request and bug the maintainer until it gets merged and
