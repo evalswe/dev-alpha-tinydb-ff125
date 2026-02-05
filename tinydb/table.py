@@ -147,7 +147,7 @@ class Table:
             raise ValueError('Document is not a Mapping')
 
         # First, we get the document ID for the new document
-        if isinstance(document, Document):
+        if isinstance(document, self.document_class):
             # For a `Document` object we use the specified ID
             doc_id = document.doc_id
 
@@ -190,7 +190,7 @@ class Table:
                 if not isinstance(document, Mapping):
                     raise ValueError('Document is not a Mapping')
 
-                if isinstance(document, Document):
+                if isinstance(document, self.document_class):
                     # Check if document does not override an existing document
                     if document.doc_id in table:
                         raise ValueError(
@@ -246,8 +246,14 @@ class Table:
         if cached_results is not None:
             return cached_results[:]
 
-        # Perform the search by applying the query to all documents
-        docs = [doc for doc in self if cond(doc)]
+        # Perform the search by applying the query to all documents.
+        # Then, only if the document matches the query, convert it
+        # to the document class and document ID class.
+        docs = [
+            self.document_class(doc, self.document_id_class(doc_id))
+            for doc_id, doc in self._read_table().items()
+            if cond(doc)
+        ]
 
         # Only cache cacheable queries.
         #
@@ -274,22 +280,26 @@ class Table:
         self,
         cond: Optional[QueryLike] = None,
         doc_id: Optional[int] = None,
-    ) -> Optional[Document]:
+        doc_ids: Optional[List] = None
+    ) -> Optional[Union[Document, List[Document]]]:
         """
         Get exactly one document specified by a query or a document ID.
-
+        However, if multiple document IDs are given then returns all
+        documents in a list.
+        
         Returns ``None`` if the document doesn't exist.
 
         :param cond: the condition to check against
         :param doc_id: the document's ID
+        :param doc_ids: the document's IDs(multiple)
 
-        :returns: the document or ``None``
+        :returns: the document(s) or ``None``
         """
+        table = self._read_table()
 
         if doc_id is not None:
             # Retrieve a document specified by its ID
-            table = self._read_table()
-            raw_doc = table.get(doc_id, None)
+            raw_doc = table.get(str(doc_id), None)
 
             if raw_doc is None:
                 return None
@@ -297,15 +307,37 @@ class Table:
             # Convert the raw data to the document class
             return self.document_class(raw_doc, doc_id)
 
+        elif doc_ids is not None:
+            # Filter the table by extracting out all those documents which
+            # have doc id specified in the doc_id list.
+
+            # Since document IDs will be unique, we make it a set to ensure
+            # constant time lookup
+            doc_ids_set = set(str(doc_id) for doc_id in doc_ids)
+
+            # Now return the filtered documents in form of list
+            return [
+                self.document_class(doc, self.document_id_class(doc_id))
+                for doc_id, doc in table.items()
+                if doc_id in doc_ids_set
+            ]
+
         elif cond is not None:
             # Find a document specified by a query
-            for doc in self:
+            # The trailing underscore in doc_id_ is needed so MyPy
+            # doesn't think that `doc_id_` (which is a string) needs
+            # to have the same type as `doc_id` which is this function's
+            # parameter and is an optional `int`.
+            for doc_id_, doc in self._read_table().items():
                 if cond(doc):
-                    return doc
+                    return self.document_class(
+                        doc,
+                        self.document_id_class(doc_id_)
+                    )
 
             return None
 
-        raise RuntimeError('You have to pass either cond or doc_id')
+        raise RuntimeError('You have to pass either cond or doc_id or doc_ids')
 
     def contains(
         self,
@@ -489,7 +521,7 @@ class Table:
         """
 
         # Extract doc_id
-        if isinstance(document, Document) and hasattr(document, 'doc_id'):
+        if isinstance(document, self.document_class) and hasattr(document, 'doc_id'):
             doc_ids: Optional[List[int]] = [document.doc_id]
         else:
             doc_ids = None
@@ -610,20 +642,7 @@ class Table:
         Count the total number of documents in this table.
         """
 
-        # Using self._read_table() will convert all documents into
-        # the document class. But for counting the number of documents
-        # this conversion is not necessary, thus we read the storage
-        # directly here
-
-        tables = self._storage.read()
-
-        if tables is None:
-            return 0
-
-        try:
-            return len(tables[self.name])
-        except KeyError:
-            return 0
+        return len(self._read_table())
 
     def __iter__(self) -> Iterator[Document]:
         """
@@ -635,7 +654,7 @@ class Table:
         # Iterate all documents and their IDs
         for doc_id, doc in self._read_table().items():
             # Convert documents to the document class
-            yield self.document_class(doc, doc_id)
+            yield self.document_class(doc, self.document_id_class(doc_id))
 
     def _get_next_id(self):
         """
@@ -666,20 +685,19 @@ class Table:
         max_id = max(self.document_id_class(i) for i in table.keys())
         next_id = max_id + 1
 
-        # The next ID we wil return AFTER this call needs to be larger than
+        # The next ID we will return AFTER this call needs to be larger than
         # the current next ID we calculated
         self._next_id = next_id + 1
 
         return next_id
 
-    def _read_table(self) -> Dict[int, Mapping]:
+    def _read_table(self) -> Dict[str, Mapping]:
         """
         Read the table data from the underlying storage.
 
-        Here we read the data from the underlying storage and convert all
-        IDs to the document ID class. Documents themselves are NOT yet
-        transformed into the document class, we may not want to convert
-        *all* documents when returning only one document for example.
+        Documents and doc_ids are NOT yet transformed, as 
+        we may not want to convert *all* documents when returning
+        only one document for example.
         """
 
         # Retrieve the tables from the storage
@@ -696,12 +714,7 @@ class Table:
             # The table does not exist yet, so it is empty
             return {}
 
-        # Convert all document IDs to the correct document ID class and return
-        # the table data dict
-        return {
-            self.document_id_class(doc_id): doc
-            for doc_id, doc in table.items()
-        }
+        return table
 
     def _update_table(self, updater: Callable[[Dict[int, Mapping]], None]):
         """
