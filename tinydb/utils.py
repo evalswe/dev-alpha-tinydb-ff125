@@ -98,7 +98,7 @@ class LRUCache(abc.MutableMapping, Generic[K, V]):
         return default
 
     def set(self, key: K, value: V):
-        if key in self.cache:
+        if self.cache.get(key):
             self.cache[key] = value
             self.cache.move_to_end(key, last=True)
         else:
